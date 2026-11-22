@@ -186,6 +186,19 @@ describe.skipIf(!enabled)("MCP server agents (PostgreSQL)", () => {
         select: { botId: true },
       });
       expect(kept.map((row) => row.botId)).toEqual([botIds.writer]);
+
+      // A choice loaded before the bot was archived gives it no new access.
+      await client().mcp.servers.agents({ id: server!.id, allBots: false, botIds: [] });
+      await runAsSystem("mcp agents fixture", () =>
+        prisma.botMcpServer.deleteMany({ where: { serverId: server!.id } }),
+      );
+      const stale = await client().mcp.servers.agents({
+        id: server!.id,
+        allBots: false,
+        botIds: [botIds.writer],
+      });
+      expect(stale.assignments).toEqual([]);
+      expect(await prisma.botMcpServer.count({ where: { serverId: server!.id } })).toBe(0);
     }),
   );
 });
